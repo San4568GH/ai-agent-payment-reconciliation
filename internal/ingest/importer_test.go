@@ -21,7 +21,7 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	database, err := db.Connect(ctx, dbURL)
@@ -143,3 +143,4 @@ ORD-O2,2500.00,INR,captured,2026-10-01 10:10:00
 		t.Errorf("expected 1 inserted, 1 skipped for file2, got: %+v", res2)
 	}
 }
+
