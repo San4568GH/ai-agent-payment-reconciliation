@@ -69,13 +69,20 @@ func NewRouter(opts RouterOptions) chi.Router {
 		if opts.Database != nil && opts.Database.Pool != nil {
 			dataHandler := NewDataHandler(opts.Database.Pool, opts.Config)
 
-			// Import endpoints
-			apiRoute.Get("/imports", dataHandler.HandleListImports) // viewer role permitted
+			// Viewer routes (GET)
+			apiRoute.Get("/imports", dataHandler.HandleListImports)
+			apiRoute.Get("/summary", dataHandler.HandleSummary)
+			apiRoute.Get("/settlements", dataHandler.HandleListSettlements)
+			apiRoute.Get("/settlements/{id}", dataHandler.HandleGetSettlement)
+			apiRoute.Get("/exceptions", dataHandler.HandleListExceptions)
+			apiRoute.Get("/exceptions/{id}", dataHandler.HandleGetException)
 
+			// Operator routes (POST)
 			apiRoute.Group(func(opRoute chi.Router) {
 				opRoute.Use(RequireOperator)
 				opRoute.Post("/imports", dataHandler.HandleImport)
 				opRoute.Post("/imports/seed", dataHandler.HandleSeedImport)
+				opRoute.Post("/settlement-runs", dataHandler.HandleSettlementRun)
 			})
 		}
 	})
