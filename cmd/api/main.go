@@ -1,0 +1,98 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/hackathon/settlement-agent/internal/agent"
+	"github.com/hackathon/settlement-agent/internal/api"
+	"github.com/hackathon/settlement-agent/internal/config"
+	"github.com/hackathon/settlement-agent/internal/db"
+	"github.com/hackathon/settlement-agent/migrations"
+)
+
+func main() {
+	cfg := config.Load()
+
+	log.Printf("Starting settlement-agent api on %s", cfg.HTTPAddr)
+	log.Printf("LLM Mode: %s, Model: %s", cfg.LLMMode, cfg.LLMModel)
+
+	// Background context with timeout for startup tasks
+	ctxStartup, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelStartup()
+
+	// Connect to PostgreSQL
+	database, err := db.Connect(ctxStartup, cfg.DatabaseURL)
+	if err != nil {
+		log.Printf("Warning: Database connection failed at startup: %v (healthz will report 503 until DB is available)", err)
+	} else {
+		log.Println("Connected to PostgreSQL successfully")
+		// Apply goose migrations
+		if err := db.Migrate(database.Pool, migrations.FS, "."); err != nil {
+			log.Fatalf("Failed to run migrations: %v", err)
+		}
+		ver, err := db.Version(database.Pool)
+		if err != nil {
+			log.Printf("Warning: failed to fetch migration version: %v", err)
+		} else {
+			log.Printf("Goose migrations up to date (current version: %d)", ver)
+		}
+	}
+
+	// Run LLM smoke test
+	ctxSmoke, cancelSmoke := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancelSmoke()
+	smokeResult, err := agent.RunSmokeTest(ctxSmoke, cfg.AnthropicAPIKey, cfg.LLMModel, cfg.LLMMode)
+	if err != nil {
+		log.Printf("LLM Smoke Test Notice: %v", err)
+	} else {
+		log.Printf("LLM Smoke Test Passed: provider=%s, model=%s, tool=%s", smokeResult.Provider, smokeResult.Model, smokeResult.ToolUsed)
+	}
+
+	// Router setup
+	r := api.NewRouter(api.RouterOptions{
+		Config:   cfg,
+		Database: database,
+	})
+
+	srv := &http.Server{
+		Addr:         cfg.HTTPAddr,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// Graceful shutdown channel
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		log.Printf("Server listening on %s", cfg.HTTPAddr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	<-shutdown
+	log.Println("Shutting down server...")
+
+	ctxShut, cancelShut := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelShut()
+
+	if err := srv.Shutdown(ctxShut); err != nil {
+		log.Printf("Server shutdown error: %v", err)
+	}
+
+	if database != nil {
+		database.Close()
+	}
+
+	log.Println("Server gracefully stopped")
+}

@@ -1,0 +1,4 @@
+method,rate_bps,fixed_fee,effective_from,effective_to
+card,200,0.00,2026-01-01,2026-10-14
+card,240,0.00,2026-10-15,
+upi,50,0.00,2026-01-01,

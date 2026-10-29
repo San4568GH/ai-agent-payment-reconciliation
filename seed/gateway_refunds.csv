@@ -1,0 +1,2 @@
+gateway_refund_id,gateway_payment_id,refund_ref,amount,status,refunded_at,settlement_ref
+GWREF-R1,PAY-R1,REF-R1,5000.00,processed,2026-10-13 15:00:00,STL-20261014-R
