@@ -83,3 +83,4 @@ func LinkBatchDeposits(batch SettlementBatch, deposits []BankDeposit, existingMa
 
 	return res
 }
+

@@ -129,3 +129,4 @@ func CalculateBatchExpected(batch SettlementBatch, payments []GatewayPayment, re
 
 	return calc, nil
 }
+

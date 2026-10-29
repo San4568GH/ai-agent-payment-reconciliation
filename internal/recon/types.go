@@ -165,3 +165,4 @@ type RefundLinkUpdate struct {
 	GatewayRefundID  int64
 	InternalRefundID *int64
 }
+

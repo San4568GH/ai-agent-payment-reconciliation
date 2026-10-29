@@ -136,3 +136,4 @@ func (e *Engine) CalculateSummary(results []BatchResult) (volume, expNet, bankRe
 	}
 	return
 }
+

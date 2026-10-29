@@ -111,3 +111,4 @@ func TestLinkBatchDeposits_PendingVsOverdue(t *testing.T) {
 		t.Errorf("expected pending=false when as_of is overdue")
 	}
 }
+
