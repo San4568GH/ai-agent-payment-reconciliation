@@ -221,7 +221,54 @@ Expected output:
 
 ---
 
-## 7. Step-by-Step Operational Workflow
+## 7. React Operator Workstation UI (Day 4)
+
+The workstation UI is a single-page React 18 + TypeScript application styled with Mantine UI v7 and powered by TanStack Query v5.
+
+### Accessing the Workstation
+The application can be accessed in two ways:
+1. **Directly via Go Server (Embedded)**:
+   - URL: **`http://localhost:8080/`**
+   - The Go Chi API server automatically detects and serves the built production assets from `web/dist/`. No separate web server is required.
+2. **Via Standalone Preview / Vite Server**:
+   - URL: **`http://localhost:3000/`**
+   - Runs with automated API proxy forwarding to `:8080`.
+
+### Building the Frontend Assets (Optional)
+The pre-built production assets are already bundled in `web/dist/`. If you modify any frontend code in `web/src/`, re-bundle using Docker:
+```bash
+docker run --rm -v $(pwd)/web:/app -w /app node:20-alpine npm run build
+```
+*(Or locally if Node is installed: `cd web && npm install && npm run build`).*
+
+### Workstation Feature Tour
+- **Role Toggle (Operator vs. Viewer)**:
+  - Located in the top header.
+  - **Operator (`operator:Alice`)**: Allowed to load seed data, trigger reconciliations, launch agent investigations, and approve/reject/execute remediations.
+  - **Viewer (`viewer:Auditor`)**: Read-only mode. All mutation buttons are disabled with tooltips. Any unauthorized backend calls return `403 Forbidden`.
+- **KPI Summary Cards**:
+  - Displays Total Payment Volume, Expected Net, Actual Bank Received, Net Variance (color-coded red/green), and Batch Match Health percentage.
+- **Exceptions Table**:
+  - Filter by exception type (`FEE_VARIANCE`, `DELAYED_OR_SPLIT_DEPOSIT`, `REFUND_NOT_IN_LEDGER`, `MISSING_DEPOSIT`) or status.
+  - One-click **"Investigate"** button triggers autonomous agent analysis.
+  - **"Inspect / Review Draft"** opens the split-view drawer.
+- **Split-View Investigation Workspace**:
+  - **Left Pane (Variance Decomposition)**: Displays the deterministic formula ($B - E = \text{Variance}$), Reported vs Expected grid, candidate deposit window ($T \dots T+2$), and traceable evidence registry chips.
+  - **Right Pane (Agent Execution Trace)**: Accordion displaying turn-by-turn tool calls (`inspect_gateway_config`, `search_ledger`, `draft_remediation_entry`), execution latencies, input arguments, sanitized tool outputs, and the authoritative **"Agent summary"** conclusion card.
+- **Human-In-The-Loop Remediation Card**:
+  - Displays proposed policy action, Go-calculated financial payload, and SHA-256 idempotency key.
+  - **"Approve & Execute"**: Authorizes the Go backend to execute against external mock services and marks the exception as `action_taken`.
+  - **"Reject Proposal"**: Rejects proposal with an operator note.
+  - **"Retry Execution"**: Safely retries external execution if a downstream service previously failed.
+- **Dev & Simulation Controls Bar**:
+  - Test mock downstream failure modes (`none`, `error_500`, `commit_then_500`) to demonstrate retry resilience.
+  - Switch between Synchronous (waits 3–4s) and Asynchronous background investigations.
+- **Audit Log Drawer**:
+  - Click **"Audit Log"** in the header to view the immutable append-only regulatory audit ledger.
+
+---
+
+## 8. Step-by-Step Operational Workflow (CLI & Automated API)
 
 Once the server is running and seed data is ingested:
 

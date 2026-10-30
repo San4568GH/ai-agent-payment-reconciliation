@@ -117,9 +117,10 @@ export interface SettlementBatch {
   reported_refund_minor: number;
   reported_net_minor: number;
   expected_net_minor: number;
-  bank_received_minor: number;
+  bank_received_minor?: number;
+  bank_total_minor?: number;
   variance_minor: number;
-  status: 'matched' | 'has_exceptions' | 'pending';
+  status: 'matched' | 'has_exceptions' | 'pending' | 'unreconciled';
 }
 
 export interface WorkflowStep {

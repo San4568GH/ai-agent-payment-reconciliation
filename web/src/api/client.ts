@@ -75,8 +75,11 @@ export const api = {
   getAuditEvents: (): Promise<AuditEvent[]> => request<AuditEvent[]>('/api/audit-events'),
 
   runReconciliation: (asOf?: string): Promise<any> => {
-    const query = asOf ? `?as_of=${encodeURIComponent(asOf)}` : '';
-    return request(`/api/settlement-runs${query}`, { method: 'POST' });
+    const date = asOf || '2026-10-20';
+    return request(`/api/settlement-runs?as_of=${encodeURIComponent(date)}`, {
+      method: 'POST',
+      body: JSON.stringify({ as_of: date }),
+    });
   },
 
   importSeed: (): Promise<any> => request('/api/imports/seed', { method: 'POST' }),

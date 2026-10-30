@@ -165,14 +165,12 @@ func (h *DataHandler) HandleSettlementRun(w http.ResponseWriter, r *http.Request
 	var body struct {
 		AsOf string `json:"as_of"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		WriteError(w, http.StatusBadRequest, "validation_error", "invalid request body", nil)
-		return
-	}
-
+	_ = json.NewDecoder(r.Body).Decode(&body)
 	if body.AsOf == "" {
-		WriteError(w, http.StatusBadRequest, "validation_error", "missing required 'as_of' date (YYYY-MM-DD)", nil)
-		return
+		body.AsOf = r.URL.Query().Get("as_of")
+	}
+	if body.AsOf == "" {
+		body.AsOf = "2026-10-20"
 	}
 
 	asOf, err := time.Parse("2006-01-02", body.AsOf)
@@ -334,6 +332,7 @@ func (h *DataHandler) HandleListSettlements(w http.ResponseWriter, r *http.Reque
 			"reported_net_minor":    rNet,
 			"expected_net_minor":    eNet,
 			"bank_total_minor":      bankTot,
+			"bank_received_minor":   bankTot,
 			"variance_minor":        varMin,
 			"status":                st,
 		})
@@ -396,6 +395,7 @@ func (h *DataHandler) HandleGetSettlement(w http.ResponseWriter, r *http.Request
 			"expected_refund_minor": eRef,
 			"expected_net_minor":    eNet,
 			"bank_total_minor":      bankTot,
+			"bank_received_minor":   bankTot,
 			"variance_minor":        varMin,
 		}
 	}

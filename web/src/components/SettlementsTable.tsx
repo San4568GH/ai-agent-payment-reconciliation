@@ -77,7 +77,7 @@ export const SettlementsTable: React.FC<SettlementsTableProps> = ({ batches }) =
                   </Table.Td>
                   <Table.Td>
                     <Text size="xs" fw={600} c="teal.7">
-                      {formatINR(b.bank_received_minor)}
+                      {formatINR(b.bank_received_minor ?? b.bank_total_minor ?? 0)}
                     </Text>
                   </Table.Td>
                   <Table.Td>
