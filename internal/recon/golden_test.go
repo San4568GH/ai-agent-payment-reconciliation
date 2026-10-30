@@ -180,19 +180,25 @@ func TestGoldenScenario_Reconciliation(t *testing.T) {
 		}
 	}
 
-	// Verify Decoy deposit DEP-9999 is NOT matched
+	// Verify Decoy deposit TXN-DECOY-01 is present in bank_deposits but NOT matched
+	var decoyExists int
+	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM bank_deposits WHERE bank_txn_id = 'TXN-DECOY-01'").Scan(&decoyExists)
+	if err != nil || decoyExists != 1 {
+		t.Fatalf("decoy deposit TXN-DECOY-01 should exist in bank_deposits, found: %d, err: %v", decoyExists, err)
+	}
+
 	var decoyMatches int
 	err = pool.QueryRow(ctx, `
 		SELECT COUNT(*)
 		FROM matches m
 		JOIN bank_deposits bd ON m.deposit_id = bd.id
-		WHERE bd.bank_txn_id = 'DEP-9999'
+		WHERE bd.bank_txn_id = 'TXN-DECOY-01'
 	`).Scan(&decoyMatches)
 	if err != nil {
 		t.Fatalf("query decoy matches: %v", err)
 	}
 	if decoyMatches != 0 {
-		t.Errorf("decoy deposit DEP-9999 should not be matched, but found %d matches", decoyMatches)
+		t.Errorf("decoy deposit TXN-DECOY-01 should not be matched, but found %d matches", decoyMatches)
 	}
 
 	// Count total exceptions in DB before re-run

@@ -299,7 +299,7 @@ func (s *Store) SaveOutput(ctx context.Context, out *ReconOutput) error {
 		_, err := tx.Exec(ctx, `
 			UPDATE exceptions
 			SET status = 'resolved', updated_at = now()
-			WHERE batch_id = $1 AND type = $2 AND status = 'open'
+			WHERE batch_id = $1 AND type = $2 AND status IN ('open', 'investigating', 'proposal_ready', 'escalated')
 		`, key.BatchID, key.Type)
 		if err != nil {
 			return fmt.Errorf("auto-resolve exception (batch %d, type %s): %w", key.BatchID, key.Type, err)
