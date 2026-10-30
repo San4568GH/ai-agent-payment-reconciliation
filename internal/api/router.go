@@ -98,12 +98,23 @@ func NewRouter(opts RouterOptions) chi.Router {
 		if opts.Database != nil && opts.Database.Pool != nil {
 			dataHandler := NewDataHandler(opts.Database.Pool, opts.Config)
 
-			// LLM selection: explicit > Anthropic Client if key configured > FakeLLM fallback
+			// LLM selection: explicit > Anthropic / OpenAI / Gemini Client if configured > FakeLLM fallback
 			llmClient := opts.LLM
-			if llmClient == nil && opts.Config != nil && opts.Config.AnthropicAPIKey != "" {
-				c, err := agent.NewAnthropicClient(opts.Config.AnthropicAPIKey, opts.Config.LLMModel)
-				if err == nil {
-					llmClient = c
+			if llmClient == nil && opts.Config != nil && opts.Config.LLMMode != "fake" {
+				if opts.Config.AnthropicAPIKey != "" && opts.Config.LLMMode != "openai" && opts.Config.LLMMode != "gemini" {
+					c, err := agent.NewAnthropicClient(opts.Config.AnthropicAPIKey, opts.Config.LLMModel)
+					if err == nil {
+						llmClient = c
+					}
+				} else if opts.Config.OpenAIAPIKey != "" || opts.Config.GeminiAPIKey != "" || opts.Config.OpenAIBaseURL != "" || opts.Config.LLMMode == "openai" || opts.Config.LLMMode == "gemini" {
+					key := opts.Config.OpenAIAPIKey
+					if key == "" {
+						key = opts.Config.GeminiAPIKey
+					}
+					c, err := agent.NewOpenAIClient(key, opts.Config.OpenAIBaseURL, opts.Config.LLMModel)
+					if err == nil {
+						llmClient = c
+					}
 				}
 			}
 			if llmClient == nil {

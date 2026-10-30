@@ -55,9 +55,12 @@ cp .env.example .env
 | `VIEWER_TOKEN` | Bearer token for Viewer (read-only) | `test-viewer-token` |
 | `OPERATOR_NAME` | Name recorded in audit trail logs | `Alice` |
 | `SETTLEMENT_WINDOW_DAYS` | Deposit matching window (T to T+N) | `2` |
-| `LLM_MODE` | Provider mode: `fake` or `anthropic` | `fake` |
-| `ANTHROPIC_API_KEY` | Anthropic API key (when mode is `anthropic`) | `sk-ant-api03-...` |
-| `LLM_MODEL` | Claude model identifier | `claude-3-5-sonnet-20241022` |
+| `LLM_MODE` | Provider mode: `fake`, `anthropic`, or `openai` | `fake` |
+| `ANTHROPIC_API_KEY` | Anthropic API key (when using Claude) | `sk-ant-api03-...` |
+| `OPENAI_API_KEY` | OpenAI API key (when using OpenAI models) | `sk-proj-...` |
+| `GEMINI_API_KEY` | Google Gemini API key (when using Gemini) | `AIzaSy...` |
+| `OPENAI_BASE_URL` | Custom endpoint for Gemini, Groq, Ollama, etc. | `https://api.openai.com/v1` |
+| `LLM_MODEL` | Model identifier string | `claude-3-5-sonnet-20241022` or `gpt-4o` |
 | `MOCK_BASE_URL` | Base URL for mock external services | `http://localhost:8080/mock` |
 | `MOCK_ADMIN` | Enable mock admin endpoints (`1` or `0`) | `1` |
 
@@ -65,9 +68,11 @@ cp .env.example .env
 
 ## 4. AI & LLM Provider Configuration
 
-The agent backend supports two operating modes via the `LLM_MODE` variable:
+The agent backend uses a pluggable `LLM` interface that supports **Anthropic Claude**, **OpenAI**, **Google Gemini**, **Groq**, **OpenRouter**, **local Ollama models**, and an **offline deterministic fake provider**.
 
-### Mode A: Deterministic Offline (`LLM_MODE=fake`) — Recommended for Dev & Demo
+---
+
+### Provider 1: Deterministic Offline (`LLM_MODE=fake`) — Recommended for Dev & Demo
 - **No API keys or internet connection required.** Zero LLM API cost.
 - Matches and handles all 4 golden reconciliation exception scenarios deterministically:
   1. `FEE_VARIANCE` (Batch F): Discrepancy diagnosed $\to$ `fee_inquiry` remediation proposed.
@@ -76,19 +81,82 @@ The agent backend supports two operating modes via the `LLM_MODE` variable:
   4. `MISSING_DEPOSIT` (Batch M): Overdue deposit with no bank match $\to$ human escalation triggered.
 - Ideal for automated CI/CD and offline demonstrations.
 
-### Mode B: Live Anthropic Claude (`LLM_MODE=anthropic`)
-To use live Anthropic Claude:
+---
+
+### Provider 2: Anthropic Claude (`LLM_MODE=anthropic`)
+To use Anthropic Claude (e.g., Claude 3.5 Sonnet):
 1. Obtain an API key from [Anthropic Console](https://console.anthropic.com/).
-2. In your `.env` file, set:
+2. In `.env`:
    ```bash
    LLM_MODE=anthropic
    ANTHROPIC_API_KEY=sk-ant-api03-YOUR-KEY-HERE
    LLM_MODEL=claude-3-5-sonnet-20241022
    ```
-3. The client connects to `https://api.anthropic.com/v1/messages` with:
-   - Tool calling enabled for the 4 sanctioned schemas.
-   - Exponential backoff on rate limits (`HTTP 429`) and server errors (`5xx`).
-   - Adversarial prompt injection defense (ignoring untrusted bank narration instructions).
+
+---
+
+### Provider 3: OpenAI (GPT-4o / GPT-4o-mini)
+To use OpenAI:
+1. Obtain an API key from [OpenAI Platform](https://platform.openai.com/).
+2. In `.env`:
+   ```bash
+   LLM_MODE=openai
+   OPENAI_API_KEY=sk-proj-YOUR-OPENAI-KEY-HERE
+   LLM_MODEL=gpt-4o
+   ```
+   *(Or `LLM_MODEL=gpt-4o-mini` for faster, lower-cost investigations).*
+
+---
+
+### Provider 4: Google Gemini (Gemini 1.5 Pro / Flash, Gemini 2.0)
+To use Google Gemini via its OpenAI-compatible endpoint:
+1. Obtain a Gemini API key from [Google AI Studio](https://aistudio.google.com/).
+2. In `.env`:
+   ```bash
+   LLM_MODE=openai
+   GEMINI_API_KEY=AIzaSyYOUR-GEMINI-KEY-HERE
+   OPENAI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+   LLM_MODEL=gemini-1.5-pro
+   ```
+   *(You can also use `gemini-1.5-flash` or `gemini-2.0-flash-exp`).*
+
+---
+
+### Provider 5: Local Ollama / vLLM / LiteLLM (Zero API Key, 100% Local)
+If you prefer running open-source models completely locally:
+1. Install [Ollama](https://ollama.com/) and pull a tool-calling model:
+   ```bash
+   ollama run llama3.1
+   # or: ollama run mistral-nemo / qwen2.5
+   ```
+2. In `.env`:
+   ```bash
+   LLM_MODE=openai
+   OPENAI_BASE_URL=http://localhost:11434/v1
+   OPENAI_API_KEY=ollama
+   LLM_MODEL=llama3.1
+   ```
+
+---
+
+### Provider 6: Groq / OpenRouter / DeepSeek / Together AI
+Any provider implementing the standard OpenAI Chat Completions API with tool calling works out-of-the-box:
+
+**For Groq (Ultra-fast inference):**
+```bash
+LLM_MODE=openai
+OPENAI_BASE_URL=https://api.groq.com/openai/v1
+OPENAI_API_KEY=gsk_YOUR-GROQ-KEY
+LLM_MODEL=llama-3.3-70b-versatile
+```
+
+**For OpenRouter:**
+```bash
+LLM_MODE=openai
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_API_KEY=sk-or-v1-YOUR-KEY
+LLM_MODEL=anthropic/claude-3.5-sonnet
+```
 
 ---
 

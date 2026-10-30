@@ -17,6 +17,9 @@ type Config struct {
 	OperatorName         string
 	SettlementWindowDays int
 	AnthropicAPIKey      string
+	OpenAIAPIKey         string
+	OpenAIBaseURL        string
+	GeminiAPIKey         string
 	LLMModel             string
 	LLMMode              string
 	MockBaseURL          string
@@ -36,6 +39,9 @@ func Load() *Config {
 		OperatorName:         getEnv("OPERATOR_NAME", "Alice"),
 		SettlementWindowDays: getEnvInt("SETTLEMENT_WINDOW_DAYS", 2),
 		AnthropicAPIKey:      os.Getenv("ANTHROPIC_API_KEY"),
+		OpenAIAPIKey:         os.Getenv("OPENAI_API_KEY"),
+		OpenAIBaseURL:        os.Getenv("OPENAI_BASE_URL"),
+		GeminiAPIKey:         os.Getenv("GEMINI_API_KEY"),
 		LLMModel:             getEnv("LLM_MODEL", "claude-3-5-sonnet-20241022"),
 		LLMMode:              getEnv("LLM_MODE", "fake"),
 		MockBaseURL:          getEnv("MOCK_BASE_URL", "http://localhost:8080/mock"),
