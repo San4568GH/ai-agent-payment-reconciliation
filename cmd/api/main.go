@@ -44,9 +44,10 @@ func main() {
 			log.Printf("Goose migrations up to date (current version: %d)", ver)
 		}
 
-		// Cleanup any stale 'running' runs or 'investigating' exceptions from previous abnormal shutdown
+		// Cleanup any stale 'running' runs, 'investigating' exceptions, or 'executing' remediations from previous abnormal shutdown
 		_, _ = database.Pool.Exec(ctxStartup, "UPDATE exceptions SET status = 'open', updated_at = now() WHERE status = 'investigating'")
 		_, _ = database.Pool.Exec(ctxStartup, "UPDATE workflow_runs SET status = 'failed', error = 'interrupted by server restart', finished_at = now() WHERE status = 'running'")
+		_, _ = database.Pool.Exec(ctxStartup, "UPDATE remediations SET status = 'execution_failed', last_error = 'interrupted by server restart' WHERE status = 'executing'")
 	}
 
 	// Run LLM smoke test

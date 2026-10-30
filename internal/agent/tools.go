@@ -61,7 +61,7 @@ func (tr *ToolRunner) ExecuteTool(ctx context.Context, name string, argsJSON str
 			return nil, fmt.Errorf("batch_ref is required")
 		}
 
-		tr.registry.Register(args.BatchRef)
+		tr.registry.Register(args.BatchRef, fmt.Sprintf("fee_row:%s", args.BatchRef))
 		res := tr.gwMock.InspectGatewayConfig(args.BatchRef)
 		return res, nil
 
@@ -167,18 +167,32 @@ func (tr *ToolRunner) searchLedger(ctx context.Context, target string, query str
 				return nil, err
 			}
 
-			// Register valid deposit bank_txn_id in registry
-			tr.registry.Register(txnID)
-			if ref != nil && *ref != "" {
-				tr.registry.Register(*ref)
+			// Truncate text to at most 120 chars
+			text := narration
+			if len(text) > 120 {
+				text = text[:120]
+			}
+			linkedRef := ""
+			if ref != nil {
+				linkedRef = *ref
+			}
+
+			// Register valid deposit bank_txn_id and formatted evidence ID
+			tr.registry.Register(txnID, fmt.Sprintf("deposit:%s", txnID))
+			if linkedRef != "" {
+				tr.registry.Register(linkedRef)
 			}
 
 			results = append(results, map[string]any{
-				"bank_txn_id":  txnID,
-				"reference":    ref,
-				"narration":    narration,
-				"amount_minor": amtMinor,
-				"posted_on":    posted.Format("2006-01-02"),
+				"id":               txnID,
+				"bank_txn_id":      txnID,
+				"date":             posted.Format("2006-01-02"),
+				"posted_on":        posted.Format("2006-01-02"),
+				"amount_minor":     amtMinor,
+				"text":             text,
+				"narration":        text,
+				"linked_batch_ref": linkedRef,
+				"reference":        ref,
 			})
 		}
 		return results, nil
@@ -205,15 +219,27 @@ func (tr *ToolRunner) searchLedger(ctx context.Context, target string, query str
 				return nil, err
 			}
 
-			// Register gateway refund ID in registry
-			tr.registry.Register(rfdID)
+			desc := fmt.Sprintf("Refund %s (settlement %s)", rfdID, setRef)
+			if payID != nil && *payID != "" {
+				desc = fmt.Sprintf("Refund %s on payment %s", rfdID, *payID)
+			}
+			if len(desc) > 120 {
+				desc = desc[:120]
+			}
+
+			// Register gateway refund ID and formatted evidence ID
+			tr.registry.Register(rfdID, fmt.Sprintf("gw_refund:%s", rfdID))
 
 			results = append(results, map[string]any{
+				"id":                  rfdID,
 				"gateway_refund_id":   rfdID,
-				"gateway_payment_id":  payID,
-				"amount_minor":        amtMinor,
+				"date":                rfdAt.Format("2006-01-02"),
 				"refunded_at":         rfdAt.Format(time.RFC3339),
+				"amount_minor":        amtMinor,
+				"text":                desc,
+				"linked_batch_ref":    setRef,
 				"settlement_ref_norm": setRef,
+				"gateway_payment_id":  payID,
 			})
 		}
 		return results, nil

@@ -289,6 +289,17 @@ func TestEngine_StaleRunsCleanup(t *testing.T) {
 		t.Fatalf("update exception investigating: %v", err)
 	}
 
+	// Simulate a remediation stuck in 'executing'
+	var remID int64
+	err = pool.QueryRow(ctx, `
+		INSERT INTO remediations (exception_id, run_id, action_type, payload, rationale, status, idempotency_key, created_at)
+		VALUES ($1, $2, 'fee_inquiry', '{}', 'test crash', 'executing', 'test-crash-idemp', now())
+		RETURNING id
+	`, excID, runID).Scan(&remID)
+	if err != nil {
+		t.Fatalf("insert crashed remediation: %v", err)
+	}
+
 	// Run cleanup
 	if err := engine.CleanupStaleRuns(ctx); err != nil {
 		t.Fatalf("cleanup failed: %v", err)
@@ -306,6 +317,13 @@ func TestEngine_StaleRunsCleanup(t *testing.T) {
 	pool.QueryRow(ctx, "SELECT status FROM exceptions WHERE id = $1", excID).Scan(&excStatus)
 	if excStatus != "open" {
 		t.Errorf("expected exception status 'open', got '%s'", excStatus)
+	}
+
+	// Verify remediation is marked 'execution_failed'
+	var remStatus string
+	pool.QueryRow(ctx, "SELECT status FROM remediations WHERE id = $1", remID).Scan(&remStatus)
+	if remStatus != "execution_failed" {
+		t.Errorf("expected remediation status 'execution_failed', got '%s'", remStatus)
 	}
 }
 

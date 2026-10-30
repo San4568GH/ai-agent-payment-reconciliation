@@ -149,11 +149,18 @@ func (gm *GatewayMock) InspectGatewayConfig(batchRef string) map[string]any {
 	isBatchF := strings.Contains(batchRef, "20261012-F") || strings.Contains(batchRef, "1012-F")
 	if isBatchF {
 		return map[string]any{
-			"batch_ref":         batchRef,
-			"gateway_contract":  "Standard Retail v2",
+			"batch_ref":               batchRef,
+			"gateway_contract":        "Standard Retail v2",
 			"effective_card_rate_bps": 200,
 			"effective_upi_rate_bps":  50,
-			"notes":             "Batch STL-20261012-F captured on 2026-10-10 under card 200 bps schedule. Gateway invoice incorrectly billed at 240 bps prematurely.",
+			"fee_reproduction": map[string]any{
+				"scheduled_card_fee_minor": 500000,
+				"billed_card_fee_minor":    600000,
+				"fee_difference_minor":     100000,
+				"rate_billed_bps":          240,
+				"rate_scheduled_bps":       200,
+			},
+			"notes":                 "Batch STL-20261012-F captured on 2026-10-10 under card 200 bps schedule. Gateway invoice incorrectly billed at 240 bps prematurely.",
 			"fee_variance_verified": true,
 		}
 	}

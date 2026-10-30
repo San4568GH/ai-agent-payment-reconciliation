@@ -85,6 +85,16 @@ func (e *Engine) CleanupStaleRuns(ctx context.Context) error {
 		return fmt.Errorf("mark stale workflow_runs: %w", err)
 	}
 
+	// Mark stale remediations stuck in 'executing' as 'execution_failed'
+	_, err = tx.Exec(ctx, `
+		UPDATE remediations
+		SET status = 'execution_failed', last_error = 'interrupted by server restart'
+		WHERE status = 'executing'
+	`)
+	if err != nil {
+		return fmt.Errorf("mark stale remediations: %w", err)
+	}
+
 	return tx.Commit(ctx)
 }
 
@@ -199,6 +209,7 @@ func (e *Engine) Investigate(ctx context.Context, exceptionID int64) (*WorkflowR
 	var totalToolCalls int
 	var totalTurns int
 	var consecutiveErrors int
+	var conclusionFailures int
 	var terminalReached bool
 	stepSeq := 0
 
@@ -283,19 +294,28 @@ func (e *Engine) Investigate(ctx context.Context, exceptionID int64) (*WorkflowR
 			`, run.ID, stepSeq, tc.Name, tc.InputJSON, string(outputJSON), summary, stepStatus, stepError, durationMs, evidenceIDs)
 
 			// Check if submit_conclusion was executed
-			if tc.Name == "submit_conclusion" && execErr == nil {
-				terminalReached = true
-				finalConclusion = outputJSON
+			if tc.Name == "submit_conclusion" {
+				if execErr == nil {
+					terminalReached = true
+					finalConclusion = outputJSON
 
-				if m, ok := toolOutput.(map[string]any); ok {
-					conc := fmt.Sprintf("%v", m["conclusion"])
-					if conc == "proposal_ready" {
-						runOutcome = "completed"
-					} else {
-						runOutcome = "escalated"
+					if m, ok := toolOutput.(map[string]any); ok {
+						conc := fmt.Sprintf("%v", m["conclusion"])
+						if conc == "proposal_ready" {
+							runOutcome = "completed"
+						} else {
+							runOutcome = "escalated"
+						}
+					}
+					break
+				} else {
+					conclusionFailures++
+					if conclusionFailures >= 2 {
+						terminalReached = true
+						runOutcome = "failed"
+						break
 					}
 				}
-				break
 			}
 
 			// Bound enforcement: Max 6 tool calls reached -> break
