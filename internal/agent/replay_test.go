@@ -86,3 +86,4 @@ func TestReplayFixture_DefenseAndOutcomeIntegrity(t *testing.T) {
 		})
 	}
 }
+

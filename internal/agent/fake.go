@@ -18,13 +18,16 @@ func (f *FakeLLM) GenerateTurn(ctx context.Context, req *TurnRequest) (*TurnResp
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	// Analyze user prompt to detect the specific scenario
+	// Analyze the user prompt to detect the specific exception scenario.
+	// NOTE: We MUST NOT check req.SystemPrompt because SystemPrompt documents
+	// all exception types (FEE_VARIANCE, DELAYED_OR_SPLIT_DEPOSIT, etc.), which
+	// would cause strings.Contains(fullText, "FEE_VARIANCE") to always match first!
 	userContent := ""
 	if len(req.Messages) > 0 {
 		userContent = req.Messages[0].Content
 	}
 
-	// Detect exception context
+	// Detect exception context from user prompt
 	switch {
 	case strings.Contains(userContent, "STL-20261012-F") || strings.Contains(userContent, "Exception Type: FEE_VARIANCE"):
 		return f.handleFeeVariance(req)
