@@ -116,3 +116,4 @@ func TestOpenAIClient_GenerateTurn_TextResponse(t *testing.T) {
 		t.Errorf("expected content 'Reconciliation complete.', got '%s'", turnRes.Content)
 	}
 }
+

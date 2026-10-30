@@ -3,7 +3,10 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -149,6 +152,20 @@ func NewRouter(opts RouterOptions) chi.Router {
 			})
 		}
 	})
+
+	// Serve static React workstation frontend from web/dist if present
+	workstationDir := "web/dist"
+	if _, err := os.Stat(workstationDir); err == nil {
+		fs := http.FileServer(http.Dir(workstationDir))
+		r.Handle("/*", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			path := filepath.Join(workstationDir, req.URL.Path)
+			if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+				http.ServeFile(w, req, filepath.Join(workstationDir, "index.html"))
+				return
+			}
+			fs.ServeHTTP(w, req)
+		}))
+	}
 
 	return r
 }

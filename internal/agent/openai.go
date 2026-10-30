@@ -259,3 +259,4 @@ func (c *OpenAIClient) GenerateTurn(ctx context.Context, req *TurnRequest) (*Tur
 
 	return nil, fmt.Errorf("openai request failed after retries: %w", lastErr)
 }
+
