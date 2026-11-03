@@ -42,7 +42,7 @@ func LinkBatchDeposits(batch SettlementBatch, deposits []BankDeposit, existingMa
 		}
 	}
 
-	// 2. Link eligible deposits
+	// 2. Pass 1: Link eligible deposits by reference / narration
 	for _, d := range deposits {
 		if d.Currency != "INR" {
 			continue
@@ -60,7 +60,7 @@ func LinkBatchDeposits(batch SettlementBatch, deposits []BankDeposit, existingMa
 		normNarr := ingest.NormalizeRef(d.Narration)
 
 		if strings.Contains(normRef, batch.BatchRefNorm) || strings.Contains(normNarr, batch.BatchRefNorm) {
-			// Found a candidate match!
+			// Found a candidate match via reference!
 			match := MatchRecord{
 				BatchID:            batch.ID,
 				DepositID:          d.ID,
@@ -71,6 +71,41 @@ func LinkBatchDeposits(batch SettlementBatch, deposits []BankDeposit, existingMa
 			res.LinkedDeposits = append(res.LinkedDeposits, d)
 			res.BankTotal += d.AmountMinor
 			matchedDepositIDs[d.ID] = true
+		}
+	}
+
+	// 3. Pass 2 (F.4 item 5 fallback):
+	// If no reference candidate was linked, look for an unmatched deposit in the window with amount equal to reported_net.
+	// If exactly one candidate exists, link as "amount_date"; if two or more exist, leave unlinked (ambiguous).
+	if len(res.Matches) == 0 {
+		var amountCandidates []BankDeposit
+		for _, d := range deposits {
+			if d.Currency != "INR" || matchedDepositIDs[d.ID] {
+				continue
+			}
+
+			posted := time.Date(d.PostedOn.Year(), d.PostedOn.Month(), d.PostedOn.Day(), 0, 0, 0, 0, time.UTC)
+			if posted.Before(exp) || posted.After(windowEnd) {
+				continue
+			}
+
+			if d.AmountMinor == batch.ReportedNetMinor {
+				amountCandidates = append(amountCandidates, d)
+			}
+		}
+
+		if len(amountCandidates) == 1 {
+			cand := amountCandidates[0]
+			match := MatchRecord{
+				BatchID:            batch.ID,
+				DepositID:          cand.ID,
+				AppliedAmountMinor: cand.AmountMinor,
+				Method:             "amount_date",
+			}
+			res.Matches = append(res.Matches, match)
+			res.LinkedDeposits = append(res.LinkedDeposits, cand)
+			res.BankTotal += cand.AmountMinor
+			matchedDepositIDs[cand.ID] = true
 		}
 	}
 

@@ -112,3 +112,55 @@ func TestLinkBatchDeposits_PendingVsOverdue(t *testing.T) {
 	}
 }
 
+func TestLinkBatchDeposits_AmountDateFallback(t *testing.T) {
+	// Batch with no matching reference in deposits
+	batch := recon.SettlementBatch{
+		ID:               5,
+		BatchRefNorm:     "STL999",
+		SettledOn:        time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC),
+		ReportedNetMinor: 5000000,
+	}
+
+	// 1. Single candidate with exact amount inside window -> links with method "amount_date"
+	depositsSingle := []recon.BankDeposit{
+		{
+			ID:          101,
+			Narration:   "GENERIC INWARD REMITTANCE",
+			AmountMinor: 5000000,
+			Currency:    "INR",
+			PostedOn:    time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	asOf := time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC)
+	resSingle := recon.LinkBatchDeposits(batch, depositsSingle, nil, 2, asOf)
+	if len(resSingle.Matches) != 1 {
+		t.Fatalf("expected 1 match via amount_date fallback, got %d", len(resSingle.Matches))
+	}
+	if resSingle.Matches[0].Method != "amount_date" {
+		t.Errorf("expected method 'amount_date', got '%s'", resSingle.Matches[0].Method)
+	}
+
+	// 2. Multiple candidates with same amount -> ambiguous, links nothing
+	depositsAmbiguous := []recon.BankDeposit{
+		{
+			ID:          101,
+			Narration:   "GENERIC INWARD REMITTANCE A",
+			AmountMinor: 5000000,
+			Currency:    "INR",
+			PostedOn:    time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			ID:          102,
+			Narration:   "GENERIC INWARD REMITTANCE B",
+			AmountMinor: 5000000,
+			Currency:    "INR",
+			PostedOn:    time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	resAmbiguous := recon.LinkBatchDeposits(batch, depositsAmbiguous, nil, 2, asOf)
+	if len(resAmbiguous.Matches) != 0 {
+		t.Fatalf("expected 0 matches when ambiguous, got %d", len(resAmbiguous.Matches))
+	}
+}
+
+
