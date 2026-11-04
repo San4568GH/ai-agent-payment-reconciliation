@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/hackathon/settlement-agent/internal/mocks"
@@ -162,29 +163,43 @@ func (e *Engine) Investigate(ctx context.Context, exceptionID int64) (*WorkflowR
 	// Pre-populate evidence registry with entities present in exception context
 	var ctxMap map[string]any
 	if err := json.Unmarshal(contextBytes, &ctxMap); err == nil {
-		if payments, ok := ctxMap["payments"].([]any); ok {
-			for _, p := range payments {
-				if pm, ok := p.(map[string]any); ok {
-					if payID, ok := pm["gateway_payment_id"].(string); ok {
-						registry.Register(payID)
-					}
-				}
+		// Context block tokens
+		registry.Register("ctx:batch", "ctx:calc", "ctx:dates")
+		if b, ok := ctxMap["batch"].(map[string]any); ok {
+			if eid, ok := b["evidence_id"].(string); ok {
+				registry.Register(eid)
 			}
 		}
-		if refunds, ok := ctxMap["refunds"].([]any); ok {
-			for _, r := range refunds {
-				if rm, ok := r.(map[string]any); ok {
-					if rfdID, ok := rm["gateway_refund_id"].(string); ok {
-						registry.Register(rfdID)
-					}
-				}
+		if d, ok := ctxMap["dates"].(map[string]any); ok {
+			if eid, ok := d["evidence_id"].(string); ok {
+				registry.Register(eid)
 			}
 		}
-		if deposits, ok := ctxMap["candidate_deposits"].([]any); ok {
+		if c, ok := ctxMap["comparison"].(map[string]any); ok {
+			if eid, ok := c["evidence_id"].(string); ok {
+				registry.Register(eid)
+			}
+		}
+		if deposits, ok := ctxMap["linked_deposits"].([]any); ok {
 			for _, d := range deposits {
 				if dm, ok := d.(map[string]any); ok {
+					if eid, ok := dm["evidence_id"].(string); ok {
+						registry.Register(eid)
+					}
 					if txnID, ok := dm["bank_txn_id"].(string); ok {
 						registry.Register(txnID)
+					}
+				}
+			}
+		}
+		if refunds, ok := ctxMap["unrecorded_refunds"].([]any); ok {
+			for _, r := range refunds {
+				if rm, ok := r.(map[string]any); ok {
+					if eid, ok := rm["evidence_id"].(string); ok {
+						registry.Register(eid)
+					}
+					if rfdID, ok := rm["gateway_refund_id"].(string); ok {
+						registry.Register(rfdID)
 					}
 				}
 			}
@@ -224,8 +239,10 @@ func (e *Engine) Investigate(ctx context.Context, exceptionID int64) (*WorkflowR
 
 		turnRes, err := e.llm.GenerateTurn(ctx, turnReq)
 		if err != nil {
+			log.Printf("[Agent Engine] Turn %d LLM call failed: %v", turn, err)
 			consecutiveErrors++
 			if consecutiveErrors >= MaxErrors {
+				log.Printf("[Agent Engine] Max consecutive errors (%d) reached, escalating run %d", MaxErrors, run.ID)
 				runOutcome = "escalated"
 				break
 			}
@@ -233,6 +250,7 @@ func (e *Engine) Investigate(ctx context.Context, exceptionID int64) (*WorkflowR
 		}
 
 		if len(turnRes.ToolCalls) == 0 {
+			log.Printf("[Agent Engine] Turn %d: LLM returned no tool calls. Output: %s", turn, turnRes.Content)
 			// No tool calls made; if draft succeeded, force conclusion
 			if toolRunner.HasDraftSucceeded() {
 				terminalReached = true

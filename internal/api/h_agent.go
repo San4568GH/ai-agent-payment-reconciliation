@@ -222,6 +222,10 @@ func (h *AgentHandler) HandleGetWorkflow(w http.ResponseWriter, r *http.Request)
 		})
 	}
 
+	if steps == nil {
+		steps = []map[string]any{}
+	}
+
 	WriteJSON(w, http.StatusOK, map[string]any{
 		"workflow": run,
 		"steps":    steps,

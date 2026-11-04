@@ -76,7 +76,7 @@ export const VarianceBreakdown: React.FC<VarianceBreakdownProps> = ({ exception 
             Variance = Bank Received (B) − Expected Net (E)
           </Text>
           <Text size="xs" c="dimmed" style={{ textAlign: 'center' }} mt={2}>
-            {formatINR(comp?.net.bank_minor)} − {formatINR(comp?.net.expected_minor)} ={' '}
+            {formatINR(comp?.net?.bank_minor)} − {formatINR(comp?.net?.expected_minor)} ={' '}
             <strong style={{ color: '#e03131' }}>{formatINR(exception.variance_minor)}</strong>
           </Text>
         </Paper>

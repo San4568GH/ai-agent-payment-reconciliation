@@ -80,10 +80,14 @@ func (c *OpenAIClient) formatMessages(sysPrompt string, msgs []Message) []map[st
 		switch m.Role {
 		case RoleUser:
 			if len(m.ToolResults) > 0 {
-				for _, tr := range m.ToolResults {
+				for i, tr := range m.ToolResults {
+					tID := tr.ToolUseID
+					if tID == "" {
+						tID = fmt.Sprintf("call_%d", i+1)
+					}
 					formatted = append(formatted, map[string]any{
 						"role":         "tool",
-						"tool_call_id": tr.ToolUseID,
+						"tool_call_id": tID,
 						"content":      tr.Content,
 					})
 				}
@@ -97,22 +101,28 @@ func (c *OpenAIClient) formatMessages(sysPrompt string, msgs []Message) []map[st
 
 		case RoleAssistant:
 			asst := map[string]any{
-				"role": "assistant",
-			}
-			if m.Content != "" {
-				asst["content"] = m.Content
+				"role":    "assistant",
+				"content": m.Content,
 			}
 			if len(m.ToolCalls) > 0 {
 				var tcList []map[string]any
-				for _, tc := range m.ToolCalls {
-					tcList = append(tcList, map[string]any{
-						"id":   tc.ID,
-						"type": "function",
-						"function": map[string]any{
-							"name":      tc.Name,
-							"arguments": tc.InputJSON,
-						},
-					})
+				for i, tc := range m.ToolCalls {
+					if tc.Raw != nil {
+						tcList = append(tcList, tc.Raw)
+					} else {
+						tcID := tc.ID
+						if tcID == "" {
+							tcID = fmt.Sprintf("call_%d", i+1)
+						}
+						tcList = append(tcList, map[string]any{
+							"id":   tcID,
+							"type": "function",
+							"function": map[string]any{
+								"name":      tc.Name,
+								"arguments": tc.InputJSON,
+							},
+						})
+					}
 				}
 				asst["tool_calls"] = tcList
 			}
@@ -206,16 +216,9 @@ func (c *OpenAIClient) GenerateTurn(ctx context.Context, req *TurnRequest) (*Tur
 			Choices []struct {
 				FinishReason string `json:"finish_reason"`
 				Message      struct {
-					Role      string `json:"role"`
-					Content   string `json:"content"`
-					ToolCalls []struct {
-						ID       string `json:"id"`
-						Type     string `json:"type"`
-						Function struct {
-							Name      string `json:"name"`
-							Arguments string `json:"arguments"`
-						} `json:"function"`
-					} `json:"tool_calls"`
+					Role      string           `json:"role"`
+					Content   string           `json:"content"`
+					ToolCalls []map[string]any `json:"tool_calls"`
 				} `json:"message"`
 			} `json:"choices"`
 			Error *struct {
@@ -243,11 +246,23 @@ func (c *OpenAIClient) GenerateTurn(ctx context.Context, req *TurnRequest) (*Tur
 
 		if len(choice.Message.ToolCalls) > 0 {
 			turnRes.StopReason = "tool_use"
-			for _, tc := range choice.Message.ToolCalls {
+			for i, tcMap := range choice.Message.ToolCalls {
+				tcID, _ := tcMap["id"].(string)
+				if tcID == "" {
+					tcID = fmt.Sprintf("call_%d_%d", time.Now().UnixNano(), i+1)
+					tcMap["id"] = tcID
+				}
+				fnName := ""
+				fnArgs := ""
+				if fn, ok := tcMap["function"].(map[string]any); ok {
+					fnName, _ = fn["name"].(string)
+					fnArgs, _ = fn["arguments"].(string)
+				}
 				turnRes.ToolCalls = append(turnRes.ToolCalls, ToolCall{
-					ID:        tc.ID,
-					Name:      tc.Function.Name,
-					InputJSON: tc.Function.Arguments,
+					ID:        tcID,
+					Name:      fnName,
+					InputJSON: fnArgs,
+					Raw:       tcMap,
 				})
 			}
 		} else {

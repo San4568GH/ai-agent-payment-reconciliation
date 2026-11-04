@@ -149,17 +149,20 @@ export const ExceptionTable: React.FC<ExceptionTableProps> = ({
                 </Table.Td>
               </Table.Tr>
             ) : (
-              filtered.map((exc) => {
+              filtered.map((exc, index) => {
                 const isInvestigating = investigatingId === exc.id || exc.status === 'investigating';
                 const hasProposal = exc.status === 'proposal_ready';
-                const isActionTaken = exc.status === 'action_taken';
+                const isCompleted = exc.status === 'action_taken' || exc.status === 'resolved';
+                const isEscalated = exc.status === 'escalated';
 
                 return (
                   <Table.Tr key={exc.id}>
                     <Table.Td>
-                      <Text size="xs" c="dimmed" fw={600}>
-                        #{exc.id}
-                      </Text>
+                      <Tooltip label={`Database Primary Key: #${exc.id}`}>
+                        <Text size="xs" c="dimmed" fw={600} style={{ cursor: 'help' }}>
+                          #{index + 1}
+                        </Text>
+                      </Tooltip>
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" fw={600} ff="monospace">
@@ -193,25 +196,27 @@ export const ExceptionTable: React.FC<ExceptionTableProps> = ({
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
                       <Group gap="xs" justify="flex-end">
-                        {/* Investigate Action */}
-                        {!isActionTaken && (
+                        {/* Investigate / Re-investigate Action */}
+                        {!isCompleted && (
                           <Tooltip
                             label={
                               currentRole === 'viewer'
                                 ? 'Viewer role is read-only'
+                                : isEscalated
+                                ? 'Re-run bounded AI investigation on this escalated exception'
                                 : 'Launch bounded AI agent investigation'
                             }
                           >
                             <Button
                               size="xs"
-                              variant="filled"
-                              color="indigo"
+                              variant={isEscalated ? 'light' : 'filled'}
+                              color={isEscalated ? 'violet' : 'indigo'}
                               leftSection={<IconSparkles size={14} />}
                               loading={isInvestigating}
                               disabled={currentRole === 'viewer' || isInvestigating}
                               onClick={() => onInvestigate(exc.id)}
                             >
-                              Investigate
+                              {isEscalated ? 'Re-investigate' : 'Investigate'}
                             </Button>
                           </Tooltip>
                         )}
@@ -225,7 +230,7 @@ export const ExceptionTable: React.FC<ExceptionTableProps> = ({
                             leftSection={<IconArrowUpRight size={14} />}
                             onClick={() => onSelectException(exc)}
                           >
-                            {hasProposal ? 'Review Draft' : isActionTaken ? 'Audit Trail' : 'Inspect'}
+                            {hasProposal ? 'Review Draft' : isCompleted ? 'Audit Trail' : isEscalated ? 'View Escalation' : 'Inspect'}
                           </Button>
                         </Tooltip>
 

@@ -79,6 +79,9 @@ export const AgentTrace: React.FC<AgentTraceProps> = ({
 
   const { workflow, steps } = workflowDetail;
   const isRunning = workflow.status === 'running';
+  const isEscalated = workflow.status === 'escalated';
+  const isFailed = workflow.status === 'failed';
+  const safeSteps = Array.isArray(steps) ? steps : [];
 
   return (
     <Box>
@@ -131,80 +134,107 @@ export const AgentTrace: React.FC<AgentTraceProps> = ({
         )}
       </Paper>
 
+      {/* Escalation or Failure Alert Banner */}
+      {(isEscalated || isFailed) && (
+        <Alert
+          icon={<IconAlertTriangle size={18} />}
+          title={isFailed ? 'Agent Investigation Failed' : 'Agent Investigation Escalated'}
+          color={isFailed ? 'red' : 'violet'}
+          variant="light"
+          radius="md"
+          mb="md"
+        >
+          <Text size="xs">
+            {workflow.error ||
+              (isFailed
+                ? 'The AI investigation encountered an unrecoverable error (e.g. LLM API rate limit or connectivity error). Check backend terminal logs.'
+                : 'Autonomous agent reached error limit or requires human intervention. The exception has been safely escalated for operator review.')}
+          </Text>
+        </Alert>
+      )}
+
       {/* Accordion of Step-by-Step Tool Calls */}
       <Text size="xs" fw={700} tt="uppercase" c="dimmed" mb="xs">
-        Execution Trace ({steps.length} Step{steps.length !== 1 ? 's' : ''})
+        Execution Trace ({safeSteps.length} Step{safeSteps.length !== 1 ? 's' : ''})
       </Text>
 
-      <Accordion variant="separated" radius="md" defaultValue={`step-${steps.length}`}>
-        {steps.map((step) => {
-          const isError = step.status === 'error';
+      {safeSteps.length === 0 ? (
+        <Paper withBorder p="md" radius="md" mb="md" style={{ textAlign: 'center', backgroundColor: '#fcfcfd' }}>
+          <Text size="xs" c="dimmed">
+            No tool execution steps were recorded for this run.
+          </Text>
+        </Paper>
+      ) : (
+        <Accordion variant="separated" radius="md" defaultValue={`step-${safeSteps.length}`}>
+          {safeSteps.map((step) => {
+            const isError = step.status === 'error';
 
-          return (
-            <Accordion.Item key={step.id || step.seq} value={`step-${step.seq}`}>
-              <Accordion.Control>
-                <Group justify="space-between">
-                  <Group gap="xs">
-                    <ThemeIcon color={isError ? 'red' : 'indigo'} size="sm" variant="light">
-                      <IconTool size={14} />
-                    </ThemeIcon>
-                    <Text size="xs" fw={700}>
-                      Step {step.seq}: <Code>{step.tool_name}</Code>
-                    </Text>
-                  </Group>
-                  <Group gap="xs">
-                    {step.duration_ms !== undefined && (
-                      <Badge size="xs" variant="outline" color="gray" leftSection={<IconClock size={10} />}>
-                        {step.duration_ms}ms
-                      </Badge>
-                    )}
-                    <Badge size="xs" color={isError ? 'red' : 'teal'}>
-                      {step.status}
-                    </Badge>
-                  </Group>
-                </Group>
-              </Accordion.Control>
-              <Accordion.Panel>
-                {/* Arguments */}
-                <Box mb="xs">
-                  <Text size="xs" c="dimmed" fw={600}>
-                    Tool Input Arguments:
-                  </Text>
-                  <Code block style={{ fontSize: 11 }}>
-                    {JSON.stringify(step.args, null, 2)}
-                  </Code>
-                </Box>
-
-                {/* Output Result */}
-                <Box mb="xs">
-                  <Text size="xs" c="dimmed" fw={600}>
-                    Sanitized Tool Output (Untrusted Data):
-                  </Text>
-                  <Code block style={{ fontSize: 11, maxHeight: 180, overflowY: 'auto' }}>
-                    {JSON.stringify(step.result, null, 2)}
-                  </Code>
-                </Box>
-
-                {/* Cited Evidence IDs */}
-                {step.evidence_ids && step.evidence_ids.length > 0 && (
-                  <Box mt="xs">
-                    <Text size="xs" c="dimmed" fw={600} mb={4}>
-                      Evidence IDs Registered:
-                    </Text>
-                    <Group gap={4}>
-                      {step.evidence_ids.map((eid) => (
-                        <Badge key={eid} size="xs" variant="dot" color="teal">
-                          {eid}
-                        </Badge>
-                      ))}
+            return (
+              <Accordion.Item key={step.id || step.seq} value={`step-${step.seq}`}>
+                <Accordion.Control>
+                  <Group justify="space-between">
+                    <Group gap="xs">
+                      <ThemeIcon color={isError ? 'red' : 'indigo'} size="sm" variant="light">
+                        <IconTool size={14} />
+                      </ThemeIcon>
+                      <Text size="xs" fw={700}>
+                        Step {step.seq}: <Code>{step.tool_name}</Code>
+                      </Text>
                     </Group>
+                    <Group gap="xs">
+                      {step.duration_ms !== undefined && (
+                        <Badge size="xs" variant="outline" color="gray" leftSection={<IconClock size={10} />}>
+                          {step.duration_ms}ms
+                        </Badge>
+                      )}
+                      <Badge size="xs" color={isError ? 'red' : 'teal'}>
+                        {step.status}
+                      </Badge>
+                    </Group>
+                  </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  {/* Arguments */}
+                  <Box mb="xs">
+                    <Text size="xs" c="dimmed" fw={600}>
+                      Tool Input Arguments:
+                    </Text>
+                    <Code block style={{ fontSize: 11 }}>
+                      {JSON.stringify(step.args, null, 2)}
+                    </Code>
                   </Box>
-                )}
-              </Accordion.Panel>
-            </Accordion.Item>
-          );
-        })}
-      </Accordion>
+
+                  {/* Output Result */}
+                  <Box mb="xs">
+                    <Text size="xs" c="dimmed" fw={600}>
+                      Sanitized Tool Output (Untrusted Data):
+                    </Text>
+                    <Code block style={{ fontSize: 11, maxHeight: 180, overflowY: 'auto' }}>
+                      {JSON.stringify(step.result, null, 2)}
+                    </Code>
+                  </Box>
+
+                  {/* Cited Evidence IDs */}
+                  {step.evidence_ids && step.evidence_ids.length > 0 && (
+                    <Box mt="xs">
+                      <Text size="xs" c="dimmed" fw={600} mb={4}>
+                        Evidence IDs Registered:
+                      </Text>
+                      <Group gap={4}>
+                        {step.evidence_ids.map((eid) => (
+                          <Badge key={eid} size="xs" variant="dot" color="teal">
+                            {eid}
+                          </Badge>
+                        ))}
+                      </Group>
+                    </Box>
+                  )}
+                </Accordion.Panel>
+              </Accordion.Item>
+            );
+          })}
+        </Accordion>
+      )}
 
       {/* Terminal Agent Conclusion (Note 8: labeled "Agent summary") */}
       {workflow.conclusion && (

@@ -10,9 +10,10 @@ const (
 )
 
 type ToolCall struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	InputJSON string `json:"input_json"`
+	ID        string         `json:"id"`
+	Name      string         `json:"name"`
+	InputJSON string         `json:"input_json"`
+	Raw       map[string]any `json:"raw,omitempty"`
 }
 
 type ToolResult struct {
