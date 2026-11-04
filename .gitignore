@@ -35,3 +35,10 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Documentation & Assets
+docs/
+
+# Markdown Documentation (keep only SETUP_GUIDE.md)
+*.md
+!SETUP_GUIDE.md
