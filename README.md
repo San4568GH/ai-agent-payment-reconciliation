@@ -111,18 +111,27 @@ The Autonomous Investigation Agent operates under strict **bounded execution gua
 
 ---
 
-## 🚀 Setup & Getting Started
+## 🚀 Quickstart & Docker-Based Deployment
 
-For the complete step-by-step setup walkthrough, environment configuration, and interactive UI verification flow, please see:
+The platform is fully containerized. You can run the complete stack (PostgreSQL 16 database + Go API backend + React 18 UI) with a single command.
 
-👉 **[SETUP_GUIDE.md](./docs/SETUP_GUIDE.md)**
+### Mode 1: 1-Command Docker Deployment (Recommended)
+```bash
+# Start all services (Database + API Backend + React Workstation)
+docker compose up -d --build
+```
+* **Localhost Access:** Open [http://localhost:8080/](http://localhost:8080/)
+* **Office Network / Private IP Demo:** Open `http://<YOUR_PRIVATE_IP>:8080/` (find via `hostname -I | awk '{print $1}'`) so colleagues and evaluators on the office Wi-Fi can view and interact with the workstation live!
 
-### Quick 3-Step Start:
+---
+
+### Mode 2: Manual Local Development
+If you prefer running the Go backend natively on your host machine:
 ```bash
 # 1. Start the PostgreSQL 16 database
-docker compose up -d
+docker compose up -d db
 
-# 2. Build and run the Go backend server (which automatically serves the UI)
+# 2. Build and run the Go backend server (automatically mounts the frontend)
 cd backend
 go build -o bin/api ./cmd/api
 ./bin/api
@@ -130,4 +139,8 @@ go build -o bin/api ./cmd/api
 # 3. Open your browser
 http://localhost:8080/
 ```
+
+For the comprehensive step-by-step setup walkthrough, environment configurations, and interactive UI verification flow, please see:
+
+👉 **[SETUP_GUIDE.md](./docs/SETUP_GUIDE.md)**
 

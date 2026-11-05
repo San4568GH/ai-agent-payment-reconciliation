@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+.env.*
+*.md
+pgdata
+backend/bin
+backend/.env
+frontend/node_modules
+frontend/.vite
+docs
+

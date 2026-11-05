@@ -98,22 +98,58 @@ LLM_MODEL=gpt-4o
 
 ## 5. Starting the Platform
 
-The Go API server has the React Workstation built-in; starting the backend automatically serves the full frontend UI.
+You can run the entire platform using either the **1-Command Docker Deployment** (recommended for evaluators and office network demos) or **Local Native Execution**.
 
-### Step 5.1: Build and Run the Server
+---
+
+### Mode 1: 1-Command Full Docker Deployment (Recommended)
+
+Both the PostgreSQL database and the Settlement Agent container (Go API + React Workstation) are orchestrated via Docker Compose:
+
 ```bash
-cd backend
-go build -o bin/api ./cmd/api
-./bin/api
+docker compose up -d --build
 ```
-On boot, the server:
-1. Connects to PostgreSQL and applies all 15 Goose migrations.
-2. Performs cleanups on stale workflow executions.
-3. Automatically mounts and serves the static workstation bundle from `frontend/dist/`.
-4. Starts the HTTP server on port `:8080`.
 
-### Step 5.2: Verify Health
-In a new terminal window:
+#### How it works:
+1. Docker builds the multi-stage `Dockerfile`:
+   * Compiles the React 18 workstation.
+   * Compiles the Go backend statically (`CGO_ENABLED=0`).
+   * Packages them into a lean ~35MB Alpine runtime image.
+2. Starts the `settlement-db` container and waits for its health check to pass.
+3. Starts the `settlement-app` container, applies all 15 Goose migrations automatically, and binds to port `:8080`.
+
+#### Accessing the Platform:
+* **From your machine:** Open [http://localhost:8080/](http://localhost:8080/)
+* **From the Office Wi-Fi / LAN (Private IP Demo):**
+  Find your machine's local IP:
+  ```bash
+  hostname -I | awk '{print $1}'
+  ```
+  *(e.g., `192.168.1.45`)*
+  Anyone in the office on the same network can access: **`http://<YOUR_PRIVATE_IP>:8080/`**
+
+---
+
+### Mode 2: Manual Local Native Execution
+
+If running Go and the database separately on your development machine:
+
+1. **Start the database container only:**
+   ```bash
+   docker compose up -d db
+   ```
+2. **Build and start the Go server:**
+   ```bash
+   cd backend
+   go build -o bin/api ./cmd/api
+   ./bin/api
+   ```
+   *The server connects to PostgreSQL, runs Goose migrations, mounts the pre-built `frontend/dist/` bundle, and listens on `:8080`.*
+
+---
+
+### Step 5.3: Verify Health Check
+In your terminal:
 ```bash
 curl -s http://localhost:8080/healthz | jq
 ```
