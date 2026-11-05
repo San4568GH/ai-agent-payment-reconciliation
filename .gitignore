@@ -44,9 +44,9 @@ Thumbs.db
 *~
 
 # Documentation & Assets
-docs/
+# docs/
 
-# Markdown Documentation (keep only SETUP_GUIDE.md and README.md)
-*.md
-!SETUP_GUIDE.md
-!README.md
+# Markdown Documentation
+docs/UI_VERIFICATION_GUIDE.md
+docs/DEMO_AND_TESTING_GUIDE.md
+docs/agent_execution_sequence.png

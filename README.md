@@ -102,7 +102,7 @@ The Autonomous Investigation Agent operates under strict **bounded execution gua
 
 For the complete step-by-step setup walkthrough, environment configuration, and interactive UI verification flow, please see:
 
-👉 **[SETUP_GUIDE.md](./SETUP_GUIDE.md)**
+👉 **[SETUP_GUIDE.md](./docs/SETUP_GUIDE.md)**
 
 ### Quick 3-Step Start:
 ```bash

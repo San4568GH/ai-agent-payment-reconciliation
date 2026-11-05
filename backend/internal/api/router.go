@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -172,15 +172,22 @@ func NewRouter(opts RouterOptions) chi.Router {
 	}
 
 	if workstationDir != "" {
+		if absDir, err := filepath.Abs(workstationDir); err == nil {
+			workstationDir = absDir
+		}
+		log.Printf("[Router] Serving React workstation UI from: %s", workstationDir)
 		fs := http.FileServer(http.Dir(workstationDir))
 		r.Handle("/*", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			path := filepath.Join(workstationDir, req.URL.Path)
-			if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+			info, statErr := os.Stat(path)
+			if statErr != nil || info.IsDir() {
 				http.ServeFile(w, req, filepath.Join(workstationDir, "index.html"))
 				return
 			}
 			fs.ServeHTTP(w, req)
 		}))
+	} else {
+		log.Printf("[Router] WARNING: No static workstation UI directory found!")
 	}
 
 	return r
