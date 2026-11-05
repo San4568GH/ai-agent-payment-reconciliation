@@ -1,5 +1,6 @@
 # Binaries & Build Outputs
 bin/
+backend/bin/
 *.exe
 *.exe~
 *.dll
@@ -8,10 +9,13 @@ bin/
 *.test
 *.out
 
-# Node / Frontend Artifacts
-web/node_modules/
-web/dist/
-web/.vite/
+# Frontend Artifacts & Dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
 .npm
 npm-debug.log*
 yarn-debug.log*
@@ -22,6 +26,9 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+backend/.env
+backend/.env.local
+backend/.env.*.local
 
 # Database & Docker Volumes
 pgdata/
@@ -39,6 +46,7 @@ Thumbs.db
 # Documentation & Assets
 docs/
 
-# Markdown Documentation (keep only SETUP_GUIDE.md)
+# Markdown Documentation (keep only SETUP_GUIDE.md and README.md)
 *.md
 !SETUP_GUIDE.md
+!README.md

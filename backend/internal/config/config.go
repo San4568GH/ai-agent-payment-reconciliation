@@ -28,12 +28,13 @@ type Config struct {
 
 func Load() *Config {
 	loadDotEnv(".env")
+	loadDotEnv("../.env")
 
 	cfg := &Config{
 		DatabaseURL:          getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/settlement?sslmode=disable"),
 		TestDatabaseURL:      getEnv("TEST_DATABASE_URL", "postgres://postgres:postgres@localhost:5432/settlement_test?sslmode=disable"),
 		HTTPAddr:             getEnv("HTTP_ADDR", ":8080"),
-		SeedDir:              getEnv("SEED_DIR", "seed"),
+		SeedDir:              getSeedDir(),
 		OperatorToken:        getEnv("OPERATOR_TOKEN", "test-operator-token"),
 		ViewerToken:          getEnv("VIEWER_TOKEN", "test-viewer-token"),
 		OperatorName:         getEnv("OPERATOR_NAME", "Alice"),
@@ -72,6 +73,20 @@ func getEnvBool(key string, defaultVal bool) bool {
 	}
 	return defaultVal
 }
+
+func getSeedDir() string {
+	if val, ok := os.LookupEnv("SEED_DIR"); ok && val != "" {
+		return val
+	}
+	candidates := []string{"seed", "backend/seed"}
+	for _, c := range candidates {
+		if info, err := os.Stat(c); err == nil && info.IsDir() {
+			return c
+		}
+	}
+	return "seed"
+}
+
 
 func loadDotEnv(filepath string) {
 	file, err := os.Open(filepath)

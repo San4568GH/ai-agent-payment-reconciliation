@@ -153,9 +153,25 @@ func NewRouter(opts RouterOptions) chi.Router {
 		}
 	})
 
-	// Serve static React workstation frontend from web/dist if present
-	workstationDir := "web/dist"
-	if _, err := os.Stat(workstationDir); err == nil {
+	// Serve static React workstation frontend from frontend/dist if present
+	candidates := []string{
+		os.Getenv("STATIC_DIR"),
+		"frontend/dist",
+		"../frontend/dist",
+		"web/dist",
+		"dist",
+	}
+	var workstationDir string
+	for _, dir := range candidates {
+		if dir != "" {
+			if info, err := os.Stat(dir); err == nil && info.IsDir() {
+				workstationDir = dir
+				break
+			}
+		}
+	}
+
+	if workstationDir != "" {
 		fs := http.FileServer(http.Dir(workstationDir))
 		r.Handle("/*", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			path := filepath.Join(workstationDir, req.URL.Path)
