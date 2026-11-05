@@ -69,10 +69,23 @@ settlement-agent/
 │   ├── package.json & vite.config.ts    # Frontend dependencies and Vite build configuration
 │   └── index.html                       # Application shell and font imports
 │
-├── docs/                                # 4K architecture diagrams and sequence flows
+├── docs/                                # Architecture diagrams & documentation
+│   ├── db.png                           # Relational database schema & dataflow diagram
+│   ├── agent_execution_sequence.png     # Multi-turn agent sequence diagram
+│   └── SETUP_GUIDE.md                   # Comprehensive operational setup & UI guide
 ├── docker-compose.yml                   # PostgreSQL 16 container definition
-└── SETUP_GUIDE.md                       # Comprehensive operational setup & UI guide
+└── .env.example                         # Environment configuration template
 ```
+
+---
+
+## 🗄️ Database Architecture & Schema Design
+
+The platform uses a normalized 15-table relational schema in PostgreSQL 16 to support end-to-end 3-way reconciliation (Orders $\leftrightarrow$ Gateway Payouts $\leftrightarrow$ Bank Statements), bounded AI execution tracking, and append-only audit logging:
+
+<p align="center">
+  <img src="./docs/db.png" alt="Database Architecture and Schema Diagram" width="800" />
+</p>
 
 ---
 
