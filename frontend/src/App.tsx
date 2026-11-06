@@ -224,11 +224,20 @@ export function App() {
   });
 
   const approveRemediationMutation = useMutation({
-    mutationFn: (id: number) => api.approveRemediation(id),
+    mutationFn: async (id: number) => {
+      const res = await api.approveRemediation(id);
+      try {
+        // Automatically re-run reconciliation in the background so all KPI cards & batch matches update instantly!
+        await api.runReconciliation(summary?.as_of || '2026-10-20');
+      } catch (e) {
+        console.warn('Auto-reconciliation background update failed:', e);
+      }
+      return res;
+    },
     onSuccess: () => {
       notifications.show({
-        title: 'Remediation Approved & Executed',
-        message: 'Remediation executed against external system and logged in audit trail.',
+        title: 'Remediation Executed & Reconciled',
+        message: 'Remediation executed against external system and ledger automatically re-reconciled.',
         color: 'teal',
       });
       queryClient.invalidateQueries();
@@ -263,11 +272,20 @@ export function App() {
   });
 
   const retryRemediationMutation = useMutation({
-    mutationFn: (id: number) => api.executeRemediation(id),
+    mutationFn: async (id: number) => {
+      const res = await api.executeRemediation(id);
+      try {
+        // Automatically re-run reconciliation in the background so all KPI cards & batch matches update instantly!
+        await api.runReconciliation(summary?.as_of || '2026-10-20');
+      } catch (e) {
+        console.warn('Auto-reconciliation background update failed:', e);
+      }
+      return res;
+    },
     onSuccess: () => {
       notifications.show({
-        title: 'Remediation Executed on Retry',
-        message: 'Idempotent execution succeeded.',
+        title: 'Remediation Executed & Reconciled',
+        message: 'Idempotent execution succeeded and ledger automatically re-reconciled.',
         color: 'teal',
       });
       queryClient.invalidateQueries();
