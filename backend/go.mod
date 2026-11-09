@@ -1,6 +1,6 @@
 module github.com/hackathon/settlement-agent
 
-go 1.26.5
+go 1.26.0
 
 require (
 	github.com/go-chi/chi/v5 v5.5.0

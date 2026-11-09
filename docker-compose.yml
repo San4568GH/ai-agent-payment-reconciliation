@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16
@@ -20,17 +18,16 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
+  backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
-    container_name: settlement-app
+    container_name: settlement-backend
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/settlement?sslmode=disable
       HTTP_ADDR: ":8080"
-      SEED_DIR: "/app/backend/seed"
-      STATIC_DIR: "/app/frontend/dist"
+      SEED_DIR: "/app/seed"
       LLM_MODE: ${LLM_MODE:-fake}
       LLM_MODEL: ${LLM_MODEL:-claude-3-5-sonnet-20241022}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -45,6 +42,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: settlement-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_started
 
 volumes:
   pgdata:

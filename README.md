@@ -113,15 +113,19 @@ The Autonomous Investigation Agent operates under strict **bounded execution gua
 
 ## 🚀 Quickstart & Docker-Based Deployment
 
-The platform is fully containerized. You can run the complete stack (PostgreSQL 16 database + Go API backend + React 18 UI) with a single command.
+The platform is fully containerized across dedicated frontend, backend, and database services:
+* **`db`:** PostgreSQL 16 database (`:5432`)
+* **`backend`:** Go 1.23 API Server & Autonomous Agent Engine (`:8080`)
+* **`frontend`:** React 18 + Mantine UI Workstation served via Nginx Reverse Proxy (`:3000`)
 
 ### Mode 1: 1-Command Docker Deployment (Recommended)
 ```bash
-# Start all services (Database + API Backend + React Workstation)
+# Start all 3 services (PostgreSQL Database + Go API Backend + React Nginx Frontend)
 docker compose up -d --build
 ```
-* **Localhost Access:** Open [http://localhost:8080/](http://localhost:8080/)
-* **Office Network / Private IP Demo:** Open `http://<YOUR_PRIVATE_IP>:8080/` (find via `hostname -I | awk '{print $1}'`) so colleagues and evaluators on the office Wi-Fi can view and interact with the workstation live!
+* **Frontend Workstation:** Open [http://localhost:3000/](http://localhost:3000/)
+* **Backend API & Health Check:** [http://localhost:8080/healthz](http://localhost:8080/healthz)
+* **Office Network / Private IP Demo:** Open `http://<YOUR_PRIVATE_IP>:3000/` (find via `hostname -I | awk '{print $1}'`) so colleagues and evaluators on the office Wi-Fi can view and interact with the workstation live!
 
 ---
 

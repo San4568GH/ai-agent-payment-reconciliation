@@ -104,29 +104,31 @@ You can run the entire platform using either the **1-Command Docker Deployment**
 
 ### Mode 1: 1-Command Full Docker Deployment (Recommended)
 
-Both the PostgreSQL database and the Settlement Agent container (Go API + React Workstation) are orchestrated via Docker Compose:
+All three tiers (PostgreSQL database, Go API backend, and React/Nginx frontend) are orchestrated via Docker Compose:
 
 ```bash
 docker compose up -d --build
 ```
 
 #### How it works:
-1. Docker builds the multi-stage `Dockerfile`:
-   * Compiles the React 18 workstation.
-   * Compiles the Go backend statically (`CGO_ENABLED=0`).
-   * Packages them into a lean ~35MB Alpine runtime image.
+1. Docker builds dedicated containers:
+   * **`settlement-db`:** Official PostgreSQL 16 image with automated health check and test database provisioning.
+   * **`settlement-backend`:** Built from `backend/Dockerfile` with Go 1.23 statically compiled (`CGO_ENABLED=0`), zero external package dependencies, and embedded timezones. Runs on port `:8080`.
+   * **`settlement-frontend`:** Built from `frontend/Dockerfile` with Node 20 builder and lean Nginx Alpine runtime reverse-proxying `/api` and `/mock` to the backend. Runs on port `:3000`.
 2. Starts the `settlement-db` container and waits for its health check to pass.
-3. Starts the `settlement-app` container, applies all 15 Goose migrations automatically, and binds to port `:8080`.
+3. Starts `settlement-backend` and applies all 15 Goose migrations automatically.
+4. Starts `settlement-frontend` connected to the backend.
 
 #### Accessing the Platform:
-* **From your machine:** Open [http://localhost:8080/](http://localhost:8080/)
+* **Workstation UI (Localhost):** Open [http://localhost:3000/](http://localhost:3000/)
+* **Backend API & Health Check:** [http://localhost:8080/healthz](http://localhost:8080/healthz)
 * **From the Office Wi-Fi / LAN (Private IP Demo):**
   Find your machine's local IP:
   ```bash
   hostname -I | awk '{print $1}'
   ```
-  *(e.g., `192.168.1.45`)*
-  Anyone in the office on the same network can access: **`http://<YOUR_PRIVATE_IP>:8080/`**
+  *(e.g., `192.168.5.107`)*
+  Anyone in the office on the same network can access: **`http://<YOUR_PRIVATE_IP>:3000/`**
 
 ---
 

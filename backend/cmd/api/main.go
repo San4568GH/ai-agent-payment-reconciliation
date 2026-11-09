@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/hackathon/settlement-agent/internal/agent"
 	"github.com/hackathon/settlement-agent/internal/api"
