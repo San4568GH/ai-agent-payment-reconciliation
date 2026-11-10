@@ -150,6 +150,11 @@ func NewRouter(opts RouterOptions) chi.Router {
 				opRoute.Post("/remediations/{id}/reject", agentHandler.HandleRejectRemediation)
 				opRoute.Post("/remediations/{id}/execute", agentHandler.HandleExecuteRemediation)
 			})
+		} else {
+			// If database is not ready, return 503 Service Unavailable instead of confusing 404
+			apiRoute.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
+				WriteError(w, http.StatusServiceUnavailable, "db_unavailable", "Database is not connected. The backend is waiting for PostgreSQL.", nil)
+			})
 		}
 	})
 

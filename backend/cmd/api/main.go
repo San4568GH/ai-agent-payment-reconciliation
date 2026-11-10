@@ -24,32 +24,45 @@ func main() {
 	log.Printf("Starting settlement-agent api on %s", cfg.HTTPAddr)
 	log.Printf("LLM Mode: %s, Model: %s", cfg.LLMMode, cfg.LLMModel)
 
-	// Background context with timeout for startup tasks
+	// Connect to PostgreSQL with retry loop for resilience during container startup/restart
+	var database *db.DB
+	var err error
+	maxRetries := 20
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		ctxAttempt, cancelAttempt := context.WithTimeout(context.Background(), 3*time.Second)
+		database, err = db.Connect(ctxAttempt, cfg.DatabaseURL)
+		cancelAttempt()
+		if err == nil && database != nil && database.Pool != nil {
+			log.Printf("Connected to PostgreSQL successfully on attempt %d/%d", attempt, maxRetries)
+			break
+		}
+		log.Printf("Waiting for PostgreSQL to be ready (attempt %d/%d): %v", attempt, maxRetries, err)
+		time.Sleep(1 * time.Second)
+	}
+
+	if err != nil || database == nil || database.Pool == nil {
+		log.Fatalf("Fatal: Database connection failed after %d attempts: %v", maxRetries, err)
+	}
+
+	log.Println("Applying database migrations...")
+	if err := db.Migrate(database.Pool, migrations.FS, "."); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+	ver, err := db.Version(database.Pool)
+	if err != nil {
+		log.Printf("Warning: failed to fetch migration version: %v", err)
+	} else {
+		log.Printf("Goose migrations up to date (current version: %d)", ver)
+	}
+
+	// Startup cleanup context
 	ctxStartup, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelStartup()
 
-	// Connect to PostgreSQL
-	database, err := db.Connect(ctxStartup, cfg.DatabaseURL)
-	if err != nil {
-		log.Printf("Warning: Database connection failed at startup: %v (healthz will report 503 until DB is available)", err)
-	} else {
-		log.Println("Connected to PostgreSQL successfully")
-		// Apply goose migrations
-		if err := db.Migrate(database.Pool, migrations.FS, "."); err != nil {
-			log.Fatalf("Failed to run migrations: %v", err)
-		}
-		ver, err := db.Version(database.Pool)
-		if err != nil {
-			log.Printf("Warning: failed to fetch migration version: %v", err)
-		} else {
-			log.Printf("Goose migrations up to date (current version: %d)", ver)
-		}
-
-		// Cleanup any stale 'running' runs, 'investigating' exceptions, or 'executing' remediations from previous abnormal shutdown
-		_, _ = database.Pool.Exec(ctxStartup, "UPDATE exceptions SET status = 'open', updated_at = now() WHERE status = 'investigating'")
-		_, _ = database.Pool.Exec(ctxStartup, "UPDATE workflow_runs SET status = 'failed', error = 'interrupted by server restart', finished_at = now() WHERE status = 'running'")
-		_, _ = database.Pool.Exec(ctxStartup, "UPDATE remediations SET status = 'execution_failed', last_error = 'interrupted by server restart' WHERE status = 'executing'")
-	}
+	// Cleanup any stale 'running' runs, 'investigating' exceptions, or 'executing' remediations from previous abnormal shutdown
+	_, _ = database.Pool.Exec(ctxStartup, "UPDATE exceptions SET status = 'open', updated_at = now() WHERE status = 'investigating'")
+	_, _ = database.Pool.Exec(ctxStartup, "UPDATE workflow_runs SET status = 'failed', error = 'interrupted by server restart', finished_at = now() WHERE status = 'running'")
+	_, _ = database.Pool.Exec(ctxStartup, "UPDATE remediations SET status = 'execution_failed', last_error = 'interrupted by server restart' WHERE status = 'executing'")
 
 	// Run LLM smoke test
 	ctxSmoke, cancelSmoke := context.WithTimeout(context.Background(), 15*time.Second)
