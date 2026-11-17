@@ -113,6 +113,46 @@ func (am *AccountingMock) HandleCreateJournalEntry(w http.ResponseWriter, r *htt
 	json.NewEncoder(w).Encode(entry)
 }
 
+// PostJournalEntry is a programmatic helper used during remediation execution.
+func (am *AccountingMock) PostJournalEntry(idempKey string, req JournalEntryRequest) (string, error) {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+
+	// Idempotency: Return existing entry if already processed
+	if existing, found := am.entries[idempKey]; found {
+		return existing.EntryID, nil
+	}
+
+	mode := am.injector.GetMode()
+	if mode == ModeError500 {
+		return "", fmt.Errorf("accounting service simulated failure (error_500)")
+	}
+
+	am.entrySeq++
+	entry := JournalEntryResponse{
+		EntryID:       fmt.Sprintf("JE-%d", am.entrySeq),
+		DebitAccount:  req.DebitAccount,
+		CreditAccount: req.CreditAccount,
+		AmountMinor:   req.AmountMinor,
+		Currency:      req.Currency,
+		Description:   req.Description,
+		ReferenceID:   req.ReferenceID,
+		Status:        "posted",
+		CreatedAt:     time.Now().UTC(),
+	}
+
+	// Commit-then-drop: record first, then return 500 error
+	if mode == ModeCommitThen500 {
+		am.entries[idempKey] = entry
+		am.entryList = append(am.entryList, entry)
+		return "", fmt.Errorf("accounting service simulated connection drop after commit (commit_then_500)")
+	}
+
+	am.entries[idempKey] = entry
+	am.entryList = append(am.entryList, entry)
+	return entry.EntryID, nil
+}
+
 func (am *AccountingMock) HandleListJournalEntries(w http.ResponseWriter, r *http.Request) {
 	am.mu.RLock()
 	defer am.mu.RUnlock()

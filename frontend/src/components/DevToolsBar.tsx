@@ -8,8 +8,9 @@ import {
   Switch,
   Tooltip,
   Box,
+  Button,
 } from '@mantine/core';
-import { IconCpu, IconBug, IconLock } from '@tabler/icons-react';
+import { IconCpu, IconBug, IconLock, IconRotate2 } from '@tabler/icons-react';
 import { MockFailureMode, UserRole } from '../types';
 import { api } from '../api/client';
 
@@ -28,6 +29,21 @@ export const DevToolsBar: React.FC<DevToolsBarProps> = ({
 }) => {
   const [failureMode, setFailureMode] = useState<MockFailureMode['mode']>('none');
   const [isInjecting, setIsInjecting] = useState<boolean>(false);
+
+  const [isResetting, setIsResetting] = useState<boolean>(false);
+
+  const handleResetDemo = async () => {
+    if (!window.confirm('Reset all reconciliation data and reload seed files?')) return;
+    setIsResetting(true);
+    try {
+      await api.resetDemoData();
+      window.location.reload();
+    } catch (err) {
+      console.error('Reset failed:', err);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const handleFailureModeChange = async (val: string) => {
     const mode = val as MockFailureMode['mode'];
@@ -100,6 +116,20 @@ export const DevToolsBar: React.FC<DevToolsBarProps> = ({
               checked={syncInvestigation}
               onChange={(e) => onSyncChange(e.currentTarget.checked)}
             />
+          </Tooltip>
+
+          {/* Reset Demo Button */}
+          <Tooltip label="Wipe all ledger runs and reset database back to initial state">
+            <Button
+              size="xs"
+              variant="subtle"
+              color="gray"
+              leftSection={<IconRotate2 size={13} />}
+              loading={isResetting}
+              onClick={handleResetDemo}
+            >
+              Reset Demo
+            </Button>
           </Tooltip>
 
           {currentRole === 'viewer' && (

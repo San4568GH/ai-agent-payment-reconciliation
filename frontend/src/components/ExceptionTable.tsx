@@ -196,43 +196,60 @@ export const ExceptionTable: React.FC<ExceptionTableProps> = ({
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
                       <Group gap="xs" justify="flex-end">
+                        {/* Primary Action for Proposal Ready: Review Draft */}
+                        {hasProposal && (
+                          <Tooltip label="Review proposed remediation draft and approve or reject">
+                            <Button
+                              size="xs"
+                              variant="filled"
+                              color="teal"
+                              leftSection={<IconArrowUpRight size={14} />}
+                              onClick={() => onSelectException(exc)}
+                            >
+                              Review Draft
+                            </Button>
+                          </Tooltip>
+                        )}
+
                         {/* Investigate / Re-investigate Action */}
                         {!isCompleted && (
                           <Tooltip
                             label={
                               currentRole === 'viewer'
                                 ? 'Viewer role is read-only'
-                                : isEscalated
-                                ? 'Re-run bounded AI investigation on this escalated exception'
+                                : (isEscalated || hasProposal)
+                                ? 'Re-run bounded AI investigation on this exception'
                                 : 'Launch bounded AI agent investigation'
                             }
                           >
                             <Button
                               size="xs"
-                              variant={isEscalated ? 'light' : 'filled'}
-                              color={isEscalated ? 'violet' : 'indigo'}
+                              variant={isEscalated || hasProposal ? 'light' : 'filled'}
+                              color={isEscalated ? 'violet' : hasProposal ? 'blue' : 'indigo'}
                               leftSection={<IconSparkles size={14} />}
                               loading={isInvestigating}
                               disabled={currentRole === 'viewer' || isInvestigating}
                               onClick={() => onInvestigate(exc.id)}
                             >
-                              {isEscalated ? 'Re-investigate' : 'Investigate'}
+                              {isEscalated || hasProposal ? 'Re-investigate' : 'Investigate'}
                             </Button>
                           </Tooltip>
                         )}
 
-                        {/* View Drawer Button */}
-                        <Tooltip label="Inspect variance breakdown, tool execution trace, & remediation">
-                          <Button
-                            size="xs"
-                            variant="light"
-                            color="gray"
-                            leftSection={<IconArrowUpRight size={14} />}
-                            onClick={() => onSelectException(exc)}
-                          >
-                            {hasProposal ? 'Review Draft' : isCompleted ? 'Audit Trail' : isEscalated ? 'View Escalation' : 'Inspect'}
-                          </Button>
-                        </Tooltip>
+                        {/* View Drawer Button (for non-proposal states) */}
+                        {!hasProposal && (
+                          <Tooltip label="Inspect variance breakdown, tool execution trace, & remediation">
+                            <Button
+                              size="xs"
+                              variant="light"
+                              color="gray"
+                              leftSection={<IconArrowUpRight size={14} />}
+                              onClick={() => onSelectException(exc)}
+                            >
+                              {isCompleted ? 'Audit Trail' : isEscalated ? 'View Escalation' : 'Inspect'}
+                            </Button>
+                          </Tooltip>
+                        )}
 
                         {/* Escalate Button */}
                         {exc.status === 'open' && (

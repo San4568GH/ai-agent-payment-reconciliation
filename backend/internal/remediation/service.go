@@ -312,17 +312,8 @@ func (s *Service) ExecuteRemediation(ctx context.Context, remID int64, actor str
 		return fmt.Errorf("unmarshal payload: %w", err)
 	}
 
-	// Step 2: Perform execution with up to 3 attempts
-	var externalRef string
-	var execErr error
-
-	for attempt := 1; attempt <= 3; attempt++ {
-		externalRef, execErr = s.dispatchExecution(ctx, actionType, idempKey, payload)
-		if execErr == nil {
-			break
-		}
-		time.Sleep(100 * time.Millisecond) // short retry backoff
-	}
+	// Step 2: Perform execution against external service or internal ledger
+	externalRef, execErr := s.dispatchExecution(ctx, actionType, idempKey, payload)
 
 	// Step 3: Record outcome in a transaction
 	tx, err := s.pool.Begin(ctx)
@@ -419,16 +410,32 @@ func (s *Service) dispatchExecution(ctx context.Context, actionType string, idem
 		if s.gwClient == nil {
 			return "TKT-GW-MOCK-OK", nil
 		}
-		mode := s.gwClient.InspectGatewayConfig(fmt.Sprintf("%v", payload["batch_ref"]))
-		_ = mode
-		// Create ticket via mock service
-		return fmt.Sprintf("TKT-GW-%d", time.Now().Unix()%10000), nil
+		var fiReq mocks.FeeInquiryRequest
+		fiReq.BatchRef = fmt.Sprintf("%v", payload["batch_ref"])
+		if exp, ok := payload["expected_fee_minor"].(float64); ok {
+			fiReq.ExpectedFeeMinor = int64(exp)
+		}
+		if rep, ok := payload["reported_fee_minor"].(float64); ok {
+			fiReq.ReportedFeeMinor = int64(rep)
+		}
+		return s.gwClient.PostFeeInquiry(idempKey, fiReq)
 
 	case "journal_entry_draft":
 		if s.acctClient == nil {
 			return "JE-MOCK-OK", nil
 		}
-		return fmt.Sprintf("JE-%d", time.Now().Unix()%10000), nil
+		var jeReq mocks.JournalEntryRequest
+		if refID, ok := payload["target_id"].(string); ok {
+			jeReq.ReferenceID = refID
+		}
+		if amt, ok := payload["amount_minor"].(float64); ok {
+			jeReq.AmountMinor = int64(amt)
+		}
+		jeReq.Currency = "INR"
+		jeReq.Description = fmt.Sprintf("Unrecorded refund journal adjustment for %v", payload["target_id"])
+		jeReq.DebitAccount = "4100-sales-returns"
+		jeReq.CreditAccount = "1150-gateway-clearing"
+		return s.acctClient.PostJournalEntry(idempKey, jeReq)
 
 	default:
 		return "", fmt.Errorf("unknown action type: %s", actionType)

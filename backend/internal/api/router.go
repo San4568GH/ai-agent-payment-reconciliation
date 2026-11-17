@@ -90,6 +90,19 @@ func NewRouter(opts RouterOptions) chi.Router {
 
 	r.Route("/mock", func(mockRoute chi.Router) {
 		mockRoute.Post("/_admin/fail", fi.HandleAdminFail)
+		mockRoute.Post("/_admin/reset", func(w http.ResponseWriter, r *http.Request) {
+			if opts.Database != nil && opts.Database.Pool != nil {
+				_, _ = opts.Database.Pool.Exec(r.Context(), `
+					TRUNCATE TABLE audit_events, remediations, workflow_steps, workflow_runs,
+					exceptions, matches, recon_results, gateway_fee_schedules, bank_deposits,
+					settlement_batches, gateway_refunds, gateway_payments, order_refunds, orders,
+					import_batches RESTART IDENTITY CASCADE;
+				`)
+			}
+			fi.SetMode(mocks.ModeNone)
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"status":"ok","message":"Database reset successfully"}`))
+		})
 		gwMock.RegisterRoutes(mockRoute)
 		acctMock.RegisterRoutes(mockRoute)
 	})

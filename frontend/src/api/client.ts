@@ -107,5 +107,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ mode }),
     }),
+
+  resetDemoData: (): Promise<any> =>
+    request('/mock/_admin/reset', { method: 'POST' }),
 };
 

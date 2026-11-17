@@ -187,6 +187,9 @@ func (c *OpenAIClient) GenerateTurn(ctx context.Context, req *TurnRequest) (*Tur
 		httpReq.Header.Set("Content-Type", "application/json")
 		if c.apiKey != "" {
 			httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+			if strings.Contains(c.baseURL, "googleapis.com") {
+				httpReq.Header.Set("x-goog-api-key", c.apiKey)
+			}
 		}
 
 		resp, err := c.httpClient.Do(httpReq)

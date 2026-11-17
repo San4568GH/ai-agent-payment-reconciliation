@@ -141,6 +141,40 @@ func (gm *GatewayMock) HandleGetConfig(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// PostFeeInquiry is a programmatic helper used during remediation execution.
+func (gm *GatewayMock) PostFeeInquiry(idempKey string, req FeeInquiryRequest) (string, error) {
+	gm.mu.Lock()
+	defer gm.mu.Unlock()
+
+	// Idempotency: Return existing ticket if already processed
+	if existing, found := gm.inquiries[idempKey]; found {
+		return existing.TicketID, nil
+	}
+
+	mode := gm.injector.GetMode()
+	if mode == ModeError500 {
+		return "", fmt.Errorf("gateway simulated internal server error (error_500)")
+	}
+
+	gm.ticketSeq++
+	resp := FeeInquiryResponse{
+		TicketID:   fmt.Sprintf("TKT-GW-%d", gm.ticketSeq),
+		BatchRef:   req.BatchRef,
+		Status:     "received",
+		ReceivedAt: time.Now().UTC(),
+		Message:    "Gateway operations inquiry ticket opened for fee variance review",
+	}
+
+	// Commit-then-drop: record first, then return 500 failure
+	if mode == ModeCommitThen500 {
+		gm.inquiries[idempKey] = resp
+		return "", fmt.Errorf("gateway simulated dropped connection after commit (commit_then_500)")
+	}
+
+	gm.inquiries[idempKey] = resp
+	return resp.TicketID, nil
+}
+
 // InspectGatewayConfig is a programmatic helper used by the agent tool inspect_gateway_config
 func (gm *GatewayMock) InspectGatewayConfig(batchRef string) map[string]any {
 	gm.mu.RLock()
